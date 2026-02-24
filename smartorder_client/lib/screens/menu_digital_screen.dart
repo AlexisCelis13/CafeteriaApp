@@ -21,48 +21,136 @@ class MenuDigitalScreen extends StatelessWidget {
           )
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _db.collection('categorias')
-                   .where('activa', isEqualTo: true)
-                   .orderBy('orden_visual')
-                   .snapshots(),
-        builder: (context, snapshotCategorias) {
-          if (snapshotCategorias.hasError) {
-             print("Firestore Error (Categorias): ${snapshotCategorias.error}");
-             return Center(child: Text("Error cargando categorias: ${snapshotCategorias.error}"));
-          }
-          if (!snapshotCategorias.hasData) return Center(child: CircularProgressIndicator());
-          
-          final categorias = snapshotCategorias.data!.docs
-              .map((doc) => Categoria.fromFirestore(doc))
-              .toList();
+      body: Column(
+        children: [
+          // Banner persistente de estado del pedido
+          Consumer<CarritoProvider>(
+            builder: (context, carrito, _) {
+              if (carrito.pedidoActivoId == null) return SizedBox.shrink();
+              return _BannerEstadoPedido(pedidoId: carrito.pedidoActivoId!);
+            },
+          ),
+          // Menu principal
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _db.collection('categorias')
+                         .where('activa', isEqualTo: true)
+                         .orderBy('orden_visual')
+                         .snapshots(),
+              builder: (context, snapshotCategorias) {
+                if (snapshotCategorias.hasError) {
+                   print("Firestore Error (Categorias): ${snapshotCategorias.error}");
+                   return Center(child: Text("Error cargando categorias: ${snapshotCategorias.error}"));
+                }
+                if (!snapshotCategorias.hasData) return Center(child: CircularProgressIndicator());
+                
+                final categorias = snapshotCategorias.data!.docs
+                    .map((doc) => Categoria.fromFirestore(doc))
+                    .toList();
 
-          if (categorias.isEmpty) return Center(child: Text("No hay categorias activas."));
+                if (categorias.isEmpty) return Center(child: Text("No hay categorias activas."));
 
-          return DefaultTabController(
-            length: categorias.length,
-            child: Column(
-              children: [
-                TabBar(
-                  isScrollable: true,
-                  labelColor: Theme.of(context).primaryColor,
-                  tabs: categorias.map((cat) => Tab(text: cat.nombre)).toList(),
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: categorias.map((cat) => _ListaProductosCategoria(categoriaId: cat.id)).toList(),
+                return DefaultTabController(
+                  length: categorias.length,
+                  child: Column(
+                    children: [
+                      TabBar(
+                        isScrollable: true,
+                        labelColor: Theme.of(context).primaryColor,
+                        tabs: categorias.map((cat) => Tab(text: cat.nombre)).toList(),
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: categorias.map((cat) => _ListaProductosCategoria(categoriaId: cat.id)).toList(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
   void _mostrarResumenCarrito(BuildContext context) {
     showModalBottomSheet(context: context, builder: (_) => CarritoResumenWidget());
+  }
+}
+
+class _BannerEstadoPedido extends StatelessWidget {
+  final String pedidoId;
+  const _BannerEstadoPedido({required this.pedidoId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('pedidos').doc(pedidoId).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) return SizedBox.shrink();
+
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final estado = data['estado'] ?? 'pendiente';
+
+        // Si ya esta pagado, ocultar el banner
+        if (estado == 'pagado') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Limpiar el pedido activo del provider (ya no es relevante)
+          });
+          return SizedBox.shrink();
+        }
+
+        final info = _infoEstado(estado);
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => EstadoPedidoScreen(pedidoId: pedidoId)),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: info['color'] as Color,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+            ),
+            child: Row(
+              children: [
+                Icon(info['icono'] as IconData, color: Colors.white, size: 22),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(info['titulo'] as String, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(info['subtitulo'] as String, style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.white),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Map<String, dynamic> _infoEstado(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return {'color': Colors.orange, 'icono': Icons.hourglass_top, 'titulo': 'Pedido Recibido', 'subtitulo': 'Esperando confirmacion...'};
+      case 'en_preparacion':
+        return {'color': Colors.blue, 'icono': Icons.restaurant, 'titulo': 'En Preparacion', 'subtitulo': 'Estan preparando tu pedido'};
+      case 'listo':
+        return {'color': Colors.green, 'icono': Icons.check_circle, 'titulo': 'Pedido Listo!', 'subtitulo': 'Tu pedido esta listo para recoger'};
+      default:
+        return {'color': Colors.grey, 'icono': Icons.help_outline, 'titulo': estado, 'subtitulo': ''};
+    }
   }
 }
 

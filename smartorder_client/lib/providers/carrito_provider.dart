@@ -5,8 +5,10 @@ import '../models/data_models.dart';
 class CarritoProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<ItemPedidoSnapshot> _items = [];
+  String? _pedidoActivoId;
   
   List<ItemPedidoSnapshot> get items => _items;
+  String? get pedidoActivoId => _pedidoActivoId;
 
   double get totalPedido => _items.fold(0, (sum, item) => sum + item.subtotalItem);
 
@@ -62,6 +64,8 @@ class CarritoProvider with ChangeNotifier {
       });
 
       limpiarCarrito();
+      _pedidoActivoId = docRef.id;
+      notifyListeners();
       return docRef.id;
 
     } catch (e) {
