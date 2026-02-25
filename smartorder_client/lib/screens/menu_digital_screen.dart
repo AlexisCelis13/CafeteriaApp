@@ -94,10 +94,17 @@ class _BannerEstadoPedido extends StatelessWidget {
         final data = snapshot.data!.data() as Map<String, dynamic>;
         final estado = data['estado'] ?? 'pendiente';
 
-        // Si ya esta pagado, ocultar el banner
+        // Si ya esta pagado, cambiar mesa a sucia y ocultar banner
         if (estado == 'pagado') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            // Limpiar el pedido activo del provider (ya no es relevante)
+            final carrito = context.read<CarritoProvider>();
+            final mesaId = carrito.mesaId;
+            if (mesaId != null) {
+              FirebaseFirestore.instance.collection('mesas').doc(mesaId).update({
+                'estado': 'sucia',
+                'pedido_activo_id': null,
+              });
+            }
           });
           return SizedBox.shrink();
         }
@@ -265,7 +272,7 @@ class CarritoResumenWidget extends StatelessWidget {
                 onPressed: () async {
                   final parentNav = Navigator.of(context);
                   final parentContext = parentNav.context;
-                  final pedidoId = await carrito.crearPedido('MESA-01');
+                  final pedidoId = await carrito.crearPedido();
                   parentNav.pop();
                   if (pedidoId != null) {
                     Navigator.push(

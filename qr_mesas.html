@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>SmartOrder Sync - QR Codes de Mesas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    
+    h1 { text-align: center; color: #333; margin-bottom: 10px; font-size: 24px; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+    
+    .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 30px; }
+    
+    .qr-card {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 280px;
+      page-break-inside: avoid;
+    }
+    
+    .mesa-number {
+      font-size: 48px;
+      font-weight: bold;
+      color: #ff5722;
+      margin-bottom: 5px;
+    }
+    
+    .mesa-label {
+      font-size: 14px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+    
+    .qr-container {
+      display: inline-block;
+      padding: 15px;
+      background: white;
+      border: 3px solid #ff5722;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+    
+    .scan-text {
+      font-size: 13px;
+      color: #666;
+      margin-top: 10px;
+    }
+    
+    .brand {
+      font-size: 11px;
+      color: #ccc;
+      margin-top: 8px;
+    }
+
+    .url-text {
+      font-size: 10px;
+      color: #aaa;
+      word-break: break-all;
+      margin-top: 5px;
+    }
+
+    .print-btn {
+      display: block;
+      margin: 30px auto;
+      padding: 14px 40px;
+      background: #ff5722;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .print-btn:hover { background: #e64a19; }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .print-btn { display: none !important; }
+      .subtitle { display: none; }
+      h1 { font-size: 18px; margin-bottom: 20px; }
+      .grid { gap: 15px; }
+      .qr-card { box-shadow: none; border: 1px solid #ddd; padding: 20px; width: 250px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🍽️ SmartOrder Sync</h1>
+  <p class="subtitle">Codigos QR para las mesas - Imprimir y colocar en cada mesa</p>
+  
+  <div class="grid" id="qr-grid"></div>
+  
+  <button class="print-btn" onclick="window.print()">🖨️ Imprimir QR Codes</button>
+
+  <script>
+    const BASE_URL = 'https://cafeteria-eecdf.web.app/mesa/';
+    
+    const mesas = [
+      { id: 'mesa_01', numero: 1 },
+      { id: 'mesa_02', numero: 2 },
+      { id: 'mesa_03', numero: 3 },
+    ];
+
+    const grid = document.getElementById('qr-grid');
+
+    mesas.forEach(mesa => {
+      const url = BASE_URL + mesa.id;
+      
+      const card = document.createElement('div');
+      card.className = 'qr-card';
+      card.innerHTML = `
+        <div class="mesa-number">${mesa.numero}</div>
+        <div class="mesa-label">Mesa</div>
+        <div class="qr-container" id="qr-${mesa.id}"></div>
+        <div class="scan-text">📱 Escanea para ordenar</div>
+        <div class="brand">SmartOrder Sync</div>
+        <div class="url-text">${url}</div>
+      `;
+      grid.appendChild(card);
+
+      new QRCode(document.getElementById(`qr-${mesa.id}`), {
+        text: url,
+        width: 180,
+        height: 180,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H,
+      });
+    });
+  </script>
+</body>
+</html>
